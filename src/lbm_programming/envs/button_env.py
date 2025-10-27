@@ -7,6 +7,7 @@ from typing import Any, SupportsFloat, TypeVar
 
 import gymnasium
 import numpy as np
+from prpl_utils.spaces import FunctionalSpace
 
 from lbm_programming.utils import render_avatar_grid
 
@@ -70,6 +71,15 @@ class ButtonEnv(gymnasium.Env[ButtonState, ButtonAction]):
 
     def __init__(self) -> None:
         self._current_state: ButtonState | None = None
+
+        # Define the observation and action spaces.
+        self.observation_space = FunctionalSpace(
+            contains_fn=lambda s: isinstance(s, ButtonState),
+        )
+        self.action_space = FunctionalSpace(
+            contains_fn=lambda a: isinstance(a, ButtonAction),
+            sample_fn=self._sample_action,
+        )
 
     def step(
         self, action: ButtonAction
@@ -137,3 +147,9 @@ class ButtonEnv(gymnasium.Env[ButtonState, ButtonAction]):
     def _get_obs(self) -> ButtonState:
         assert self._current_state is not None
         return self._current_state
+
+    def _sample_action(self, rng: np.random.Generator) -> ButtonAction:
+        # Sample among the possible actions. For now, we only have moves.
+        dr = int(rng.integers(-1, 2))
+        dc = int(rng.integers(-1, 2))
+        return MoveButtonAction(dr, dc)
