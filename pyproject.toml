@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "lbm_programming"
 version = "0.1.0"
-description = "A basic starter for Python packages."
+description = "Programmatic abstractions for LBMs (VLAs)."
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
