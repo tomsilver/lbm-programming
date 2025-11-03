@@ -51,6 +51,8 @@ class ButtonState:
 class ButtonAction:
     """An action in the button environment."""
 
+    val : float 
+
 
 @dataclass(frozen=True)
 class MoveButtonAction(ButtonAction):
