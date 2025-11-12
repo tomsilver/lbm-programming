@@ -68,8 +68,6 @@ class PressButtonAction(ButtonAction):
 class QueryHumanButtonAction(ButtonAction):
     """Press the button in the button environment."""
 
-    def __post_init__(self) -> None:
-        return None
 
 
 @dataclass(frozen=True)
@@ -120,7 +118,7 @@ class ButtonEnv(gymnasium.Env[ButtonState, ButtonAction]):
             self._current_state = self._current_state.copy_with(
                 robot_position=new_robot_position
             )
-        # press that target button
+        # Press that target button
         elif isinstance(action, PressButtonAction):
             true_val = self._current_state.button_values[
                 self._current_state.target_button
@@ -139,8 +137,7 @@ class ButtonEnv(gymnasium.Env[ButtonState, ButtonAction]):
         else:
             raise NotImplementedError
 
-        # Coming later.
-        # terminate if all button pressed
+        # Terminate if all button pressed
         terminated = all(self._current_state.button_statuses.values())
 
         truncated = False

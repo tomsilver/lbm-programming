@@ -32,14 +32,8 @@ def test_random_walk():
     rng = np.random.default_rng()
     action = env.action_space.sample(rng)
     next_obs, _, _, _, _ = env.step(action)
-    # assert obs.robot_position[0] + 1 == next_obs.robot_position[0]
-    # assert obs.robot_position[1] == next_obs.robot_position[1]
     print(next_obs.robot_position[1])
     # Uncomment to save the image.
     img = env.render()
     iio.imsave("button_test_image.png", img)
 
-
-# if __name__ == "__main__":
-#    test_button_env()
-#    test_random_walk()
