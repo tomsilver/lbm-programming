@@ -21,7 +21,7 @@ class ButtonState:
     robot_position: tuple[int, int]  # row, col
     button_positions: dict[str, tuple[int, int]]  # name to button positions
     button_statuses: dict[str, bool]  # name of button to status
-    button_values: dict[str, bool]  # value of button to succeed in pressing
+    button_values: dict[str, float]  # value of button to succeed in pressing
     target_button: str  # name of the button that we want to press
     human_response: float | None  # used for querying the human
     world_dims: tuple[int, int]  # height and width
@@ -203,3 +203,4 @@ class ButtonEnv(gymnasium.Env[ButtonState, ButtonAction]):
             return PressButtonAction(float_val)
         if pick_which_action == 3:
             return QueryHumanButtonAction()
+        return ButtonAction()
