@@ -69,7 +69,6 @@ class QueryHumanButtonAction(ButtonAction):
     """Press the button in the button environment."""
 
 
-
 @dataclass(frozen=True)
 class MoveButtonAction(ButtonAction):
     """Move the robot by some limited amount."""

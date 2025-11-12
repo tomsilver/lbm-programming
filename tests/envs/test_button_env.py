@@ -36,4 +36,3 @@ def test_random_walk():
     # Uncomment to save the image.
     img = env.render()
     iio.imsave("button_test_image.png", img)
-
