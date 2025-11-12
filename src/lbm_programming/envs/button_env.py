@@ -21,6 +21,7 @@ class ButtonState:
     robot_position: tuple[int, int]  # row, col
     button_positions: dict[str, tuple[int, int]]  # name to button positions
     button_statuses: dict[str, bool]  # name of button to status
+    button_values: dict[str, float]  # value of button to succeed in pressing
     target_button: str  # name of the button that we want to press
     human_response: float | None  # used for querying the human
     world_dims: tuple[int, int]  # height and width
@@ -42,6 +43,7 @@ class ButtonState:
             robot_position=robot_position,
             button_positions=self.button_positions,
             button_statuses=self.button_statuses,
+            button_values=self.button_values,
             target_button=self.target_button,
             human_response=self.human_response,
             world_dims=self.world_dims,
@@ -50,6 +52,21 @@ class ButtonState:
 
 class ButtonAction:
     """An action in the button environment."""
+
+
+@dataclass(frozen=True)
+class PressButtonAction(ButtonAction):
+    """Press the button in the button environment."""
+
+    val: float
+
+    def __post_init__(self) -> None:
+        assert -100 <= self.val <= 100
+
+
+@dataclass(frozen=True)
+class QueryHumanButtonAction(ButtonAction):
+    """Press the button in the button environment."""
 
 
 @dataclass(frozen=True)
@@ -85,7 +102,6 @@ class ButtonEnv(gymnasium.Env[ButtonState, ButtonAction]):
         self, action: ButtonAction
     ) -> tuple[ButtonState, SupportsFloat, bool, bool, dict[str, Any]]:
         assert self._current_state is not None, "Must call reset() first"
-
         # Handling moving the robot.
         if isinstance(action, MoveButtonAction):
             new_robot_position = (
@@ -101,14 +117,36 @@ class ButtonEnv(gymnasium.Env[ButtonState, ButtonAction]):
             self._current_state = self._current_state.copy_with(
                 robot_position=new_robot_position
             )
+        # Press that target button
+        elif isinstance(action, PressButtonAction):
+            true_val = self._current_state.button_values[
+                self._current_state.target_button
+            ]
+            if action.val == true_val:
+                self._current_state.button_statuses[
+                    self._current_state.target_button
+                ] = True
+
+        # Ask human to give correct answer
+        elif isinstance(action, QueryHumanButtonAction):
+            self._current_state.button_statuses[self._current_state.target_button] = (
+                True
+            )
 
         else:
             raise NotImplementedError
 
-        # Coming later.
-        reward = 0.0
-        terminated = False
+        # Terminate if all button pressed
+        terminated = all(self._current_state.button_statuses.values())
+
         truncated = False
+
+        # -1 if pressed, -100 if query human, 0 if finished
+        reward = 0.0
+        if not terminated:
+            reward = reward - 1
+            if isinstance(action, QueryHumanButtonAction):
+                reward = reward - 99
 
         return self._get_obs(), reward, terminated, truncated, {}
 
@@ -124,6 +162,7 @@ class ButtonEnv(gymnasium.Env[ButtonState, ButtonAction]):
             robot_position=(0, 0),
             button_positions={"button1": (3, 4), "button2": (5, 7)},
             button_statuses={"button1": False, "button2": False},
+            button_values={"button1": 1.0, "button2": 2.0},
             target_button="button2",
             human_response=None,
             world_dims=(10, 10),
@@ -150,6 +189,14 @@ class ButtonEnv(gymnasium.Env[ButtonState, ButtonAction]):
 
     def _sample_action(self, rng: np.random.Generator) -> ButtonAction:
         # Sample among the possible actions. For now, we only have moves.
-        dr = int(rng.integers(-1, 2))
-        dc = int(rng.integers(-1, 2))
-        return MoveButtonAction(dr, dc)
+        pick_which_action = int(rng.integers(1, 4))
+        if pick_which_action == 1:
+            dr = int(rng.integers(-1, 2))
+            dc = int(rng.integers(-1, 2))
+            return MoveButtonAction(dr, dc)
+        if pick_which_action == 2:
+            float_val = float(rng.uniform(-100, 100))
+            return PressButtonAction(float_val)
+        if pick_which_action == 3:
+            return QueryHumanButtonAction()
+        return ButtonAction()
