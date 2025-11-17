@@ -1,4 +1,4 @@
-from src.lbm_programming.envs.button_env import ButtonEnv
+from src.lbm_programming.envs.button_env import ButtonEnv, ButtonAction, ButtonState
 import gymnasium
 import numpy as np
 from prpl_utils.spaces import FunctionalSpace
@@ -60,7 +60,7 @@ class GetMotionPlan(LBMPrimitive):
     dr: int  # should be -1, 0, 1
     dc: int  # should be -1, 0, 1
 
-def QueryLBM(value)
+#def QueryLBM(value)
 
 class LBMEnv:
 
@@ -69,21 +69,51 @@ class LBMEnv:
     button_statuses: dict[str, bool]  # name of button to status
     target_button: str  # name of the button that we want to press
     world_dims: tuple[int, int]  # height and width
+    good_lbm_button_set: set[int] # are you a good button? needs preprocessing to function
 
     def __init__(self, buttonenv) -> None:
         self.buttonenv : ButtonEnv | None = None
 
-    def get_action_oracle(self):
+    def get_random_oracle(self):
+        button_status_filter = {k: v for k, v in self.button_statuses.iteritems() if v == True}
+        val = np.random.randint(0, len(button_status_filter))
+        keys_list = list(button_status_filter)
+        button_to_traverse = keys_list[val]
+        position_to_traverse = self.button_positions[button_to_traverse]
+        rand = np.random.randint(0, 3)
+        if rand == 0:
+            return self.buttonenv.get_motion_plan(position_to_traverse)
+        if rand == 1:
+            return self.buttonenv.query_lbm()
+        if rand == 2:
+            return self.buttonenv.query_human()
+
+
+    def get_action_oracle(self) -> ButtonAction:
         # If not yet standing on button, move to the closest button.
-        if self.buttonenv.button_status[self_target.button]:
-            actions = self.buttonenv.get_motion_plan()
+        if self.buttonenv.button_status[self.target_button] or self.target_button == "":
+            button_status_filter = {k: v for k, v in self.button_statuses.iteritems() if v == True}
+            action = []
+            action_flag = False
+            for k, v in button_status_filter.iteritems():
+                temp_action = self.buttonenv.get_motion_plan(self.button_positions[k])
+                if len(temp_action) < len(action) or not action_flag:
+                    action = temp_action
+                    action_flag = True
+            return action
         # If standing on button, check if this is a button that the LBM knows about.
-        if current_button in good_lbm_button_set:
-            pressure = query_lbm(current_button)
+        if self.target_button in self.good_lbm_button_set:
+            action = self.buttonenv.query_lbm()
         else:
-            pressure = query_human(current_button)
+            action = self.buttonenv.query_human()
         return action
 
+    def copy_state(self, current_state : ButtonState):
+        self.robot_position = current_state.robot_position
+        self.button_statuses = current_state.button_statuses
+        self.robot_position = current_state.robot_position
+        self.robot_position = current_state.robot_position
+        self.robot_position = current_state.robot_position
 
     def step(
         self, action: LBMPrimitive

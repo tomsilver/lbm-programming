@@ -150,7 +150,7 @@ class ButtonEnv(gymnasium.Env[ButtonState, ButtonAction]):
             self._current_state = self._current_state.copy_with(
                 robot_position=new_robot_position
             )
-        # press that target button
+        # Press that target button
         elif isinstance(action, PressButtonAction):
             true_val = self._current_state.button_values[
                 self._current_state.target_button
