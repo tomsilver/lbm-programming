@@ -40,6 +40,6 @@ def test_random_walk():
     iio.imsave("button_test_image.png", img)
 
 
-#if __name__ == "__main__":
+# if __name__ == "__main__":
 #    test_button_env()
 #    test_random_walk()
