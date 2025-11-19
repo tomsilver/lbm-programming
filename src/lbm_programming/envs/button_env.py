@@ -22,6 +22,7 @@ class ButtonState:
     button_positions: dict[str, tuple[int, int]]  # name to button positions
     button_statuses: dict[str, bool]  # name of button to status
     button_values: dict[str, float]  # value of button to succeed in pressing
+    button_good_bad: dict[str, bool]  # whther an LBM is "good" or "bad"
     target_button: str  # name of the button that we want to press
     human_response: float | None  # used for querying the human
     world_dims: tuple[int, int]  # height and width
@@ -44,6 +45,7 @@ class ButtonState:
             button_positions=self.button_positions,
             button_statuses=self.button_statuses,
             button_values=self.button_values,
+            button_good_bad=self.button_good_bad,
             target_button=self.target_button,
             human_response=self.human_response,
             world_dims=self.world_dims,
@@ -65,8 +67,31 @@ class PressButtonAction(ButtonAction):
 
 
 @dataclass(frozen=True)
+class QueryLBMAction(ButtonAction):
+    """Press the button in the button environment."""
+
+    val: float
+
+    def __post_init__(self) -> None:
+        assert -100 <= self.val <= 100
+
+
+@dataclass(frozen=True)
+class QueryHumanAction(ButtonAction):
+    """Press the button in the button environment."""
+
+    val: float
+
+    def __post_init__(self) -> None:
+        assert -100 <= self.val <= 100
+
+
+@dataclass(frozen=True)
 class QueryHumanButtonAction(ButtonAction):
     """Press the button in the button environment."""
+
+    def __post_init__(self) -> None:
+        return None
 
 
 @dataclass(frozen=True)
@@ -79,6 +104,18 @@ class MoveButtonAction(ButtonAction):
     def __post_init__(self) -> None:
         assert -1 <= self.dr <= 1
         assert -1 <= self.dc <= 1
+
+
+@dataclass(frozen=True)
+class GetMotionPlanAction(ButtonAction):
+    """Move the robot by some limited amount."""
+
+    dr: int  # should be -1, 0, 1
+    dc: int  # should be -1, 0, 1
+
+    # def __post_init__(self) -> None:
+    # assert 0 <= self.dr <= 1
+    #  assert 0 <= self.dc <= 1
 
 
 class ButtonEnv(gymnasium.Env[ButtonState, ButtonAction]):
@@ -122,13 +159,27 @@ class ButtonEnv(gymnasium.Env[ButtonState, ButtonAction]):
             true_val = self._current_state.button_values[
                 self._current_state.target_button
             ]
-            if action.val == true_val:
+            if action.val >= true_val - 0.1 and action.val <= true_val + 0.1:
                 self._current_state.button_statuses[
                     self._current_state.target_button
                 ] = True
 
+        # press that target button
+        elif isinstance(action, QueryLBMAction):
+            true_val = self._current_state.button_values[
+                self._current_state.target_button
+            ]
+            if action.val >= true_val - 0.1 and action.val <= true_val + 0.1:
+                self._current_state.button_statuses[
+                    self._current_state.target_button
+                ] = True
+
+        elif isinstance(action, GetMotionPlanAction):
+            raise NotImplementedError
+
         # Ask human to give correct answer
         elif isinstance(action, QueryHumanButtonAction):
+            # lol maybe make better sometimes
             self._current_state.button_statuses[self._current_state.target_button] = (
                 True
             )
@@ -136,7 +187,8 @@ class ButtonEnv(gymnasium.Env[ButtonState, ButtonAction]):
         else:
             raise NotImplementedError
 
-        # Terminate if all button pressed
+        # Coming later.
+        # terminate if all button pressed
         terminated = all(self._current_state.button_statuses.values())
 
         truncated = False
@@ -163,6 +215,7 @@ class ButtonEnv(gymnasium.Env[ButtonState, ButtonAction]):
             button_positions={"button1": (3, 4), "button2": (5, 7)},
             button_statuses={"button1": False, "button2": False},
             button_values={"button1": 1.0, "button2": 2.0},
+            button_good_bad={"button1": True, "button2": False},
             target_button="button2",
             human_response=None,
             world_dims=(10, 10),
@@ -188,7 +241,10 @@ class ButtonEnv(gymnasium.Env[ButtonState, ButtonAction]):
         return self._current_state
 
     def _sample_action(self, rng: np.random.Generator) -> ButtonAction:
-        # Sample among the possible actions. For now, we only have moves.
+        """Sample among the possible actions.
+
+        For now, we only have moves.
+        """
         pick_which_action = int(rng.integers(1, 4))
         if pick_which_action == 1:
             dr = int(rng.integers(-1, 2))
@@ -200,3 +256,42 @@ class ButtonEnv(gymnasium.Env[ButtonState, ButtonAction]):
         if pick_which_action == 3:
             return QueryHumanButtonAction()
         return ButtonAction()
+
+    def query_lbm(self) -> PressButtonAction:
+        """Function for querying LBM."""
+        assert self._current_state is not None
+        true_val = self._current_state.button_values[self._current_state.target_button]
+        if self._current_state.button_good_bad[self._current_state.target_button]:
+            val = np.random.normal(true_val, 0.1)
+        else:
+            val = np.random.normal(true_val, 0.6)
+        return PressButtonAction(val)
+
+    def query_human(self) -> PressButtonAction:
+        """Function for querying Humans."""
+        assert self._current_state is not None
+        good_human = np.random.binomial(n=1, p=0.7)
+        true_val = self._current_state.button_values[self._current_state.target_button]
+        if good_human:
+            val = np.random.normal(true_val, 0.01)
+        else:
+            val = np.random.normal(true_val, 0.4)
+        return PressButtonAction(val)
+
+    def get_motion_plan(self, dr, dc) -> list[MoveButtonAction]:
+        """Function for getting a motion plan."""
+        assert self._current_state is not None
+        start_state = self._current_state.robot_position
+        assert self._current_state is not None
+        # temp_state = start_state
+        ret = []
+        # lol too lazy to implement good algo
+        for _ in range(0, dr - start_state[0], 1):
+            ret.append(MoveButtonAction(1, 0))
+        for _ in range(dr - start_state[0], 0, 1):
+            ret.append(MoveButtonAction(-1, 0))
+        for _ in range(0, dc - start_state[1], 1):
+            ret.append(MoveButtonAction(0, 1))
+        for _ in range(dc - start_state[1], 0, 1):
+            ret.append(MoveButtonAction(0, -1))
+        return ret
